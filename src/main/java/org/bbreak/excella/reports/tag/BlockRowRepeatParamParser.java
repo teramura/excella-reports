@@ -37,6 +37,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.util.CellRangeAddress;
@@ -86,6 +87,11 @@ public class BlockRowRepeatParamParser extends ReportsTagParser<Object[]> {
      */
     public static final String PARAM_REPEAT_NUM = "repeatNum";
 
+    /**
+     * 最小繰り返し回数パラメータ
+     */
+    public static final String PARAM_MIN_REPEAT_NUM = "minRepeatNum";
+    
     /**
      * 折り返し回数パラメータ
      */
@@ -172,6 +178,19 @@ public class BlockRowRepeatParamParser extends ReportsTagParser<Object[]> {
                 }
                 paramInfoList.add( childParamInfo);
             }
+            
+            // 最小繰り返し回数
+            if ( paramDef.containsKey( PARAM_MIN_REPEAT_NUM)) {
+                Integer minRepeatNum = Integer.valueOf( paramDef.get( PARAM_MIN_REPEAT_NUM));
+                if ( minRepeatNum > paramInfoList.size()) {
+                    int addEmptyRowNum = minRepeatNum - paramInfoList.size();
+                    for ( int num = 0; num < addEmptyRowNum; num++) {
+                        ParamInfo childParamInfo = new ParamInfo();
+                        paramInfoList.add( childParamInfo);
+                    }
+                }
+            }
+            
             paramInfos = paramInfoList.toArray( new ParamInfo[paramInfoList.size()]);
 
             // repeatNum定義
@@ -219,7 +238,7 @@ public class BlockRowRepeatParamParser extends ReportsTagParser<Object[]> {
             // セル値・セルスタイル定義
             Object[][] blockCellValues = ReportsUtil.getBlockCellValue( sheet, defaultFromCellRowIndex, defaultToCellRowIndex, defaultFromCellColIndex, defaultToCellColIndex);
             CellStyle[][] blockCellStyles = ReportsUtil.getBlockCellStyle( sheet, defaultFromCellRowIndex, defaultToCellRowIndex, defaultFromCellColIndex, defaultToCellColIndex);
-            int[][] blockCellTypes = ReportsUtil.getBlockCellType( sheet, defaultFromCellRowIndex, defaultToCellRowIndex, defaultFromCellColIndex, defaultToCellColIndex);
+            CellType[][] blockCellTypes = ReportsUtil.getBlockCellType( sheet, defaultFromCellRowIndex, defaultToCellRowIndex, defaultFromCellColIndex, defaultToCellColIndex);
             float[] rowHeight = ReportsUtil.getRowHeight( sheet, defaultFromCellRowIndex, defaultToCellRowIndex);
 
             // 対象シートより結合セルを取得
@@ -303,7 +322,7 @@ public class BlockRowRepeatParamParser extends ReportsTagParser<Object[]> {
                             // セル取得
                             Cell cell = row.getCell( blockStartColIndex + colIdx);
                             // セルタイプの取得
-                            int cellType = blockCellTypes[rowIdx][colIdx];
+                            CellType cellType = blockCellTypes[rowIdx][colIdx];
                             // セル値の取得
                             Object cellValue = blockCellValues[rowIdx][colIdx];
                             // セルスタイルの取得
@@ -482,7 +501,7 @@ public class BlockRowRepeatParamParser extends ReportsTagParser<Object[]> {
 
             // タグ除去
             if ( removeTag) {
-                tagCell.setCellType( Cell.CELL_TYPE_BLANK);
+                tagCell.setCellType( CellType.BLANK);
             }
 
             // 解析結果

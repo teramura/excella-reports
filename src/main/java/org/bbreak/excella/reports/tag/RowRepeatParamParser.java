@@ -33,7 +33,7 @@ import java.util.Map;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.poi.common.usermodel.Hyperlink;
+import org.apache.poi.common.usermodel.HyperlinkType;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -95,6 +95,11 @@ public class RowRepeatParamParser extends ReportsTagParser<Object[]> {
      */
     public static final String PARAM_REPEAT_NUM = "repeatNum";
 
+    /**
+     * 最小繰り返し回数パラメータ
+     */
+    public static final String PARAM_MIN_REPEAT_NUM = "minRepeatNum";
+    
     /**
      * シートへのハイパーリンク設定有無
      */
@@ -159,6 +164,11 @@ public class RowRepeatParamParser extends ReportsTagParser<Object[]> {
             if ( paramDef.containsKey( PARAM_REPEAT_NUM)) {
                 repeatNum = Integer.valueOf( paramDef.get( PARAM_REPEAT_NUM));
             }
+            // 最小繰り返し最大回数
+            Integer minRepeatNum = null;
+            if ( paramDef.containsKey( PARAM_MIN_REPEAT_NUM)) {
+                minRepeatNum = Integer.valueOf( paramDef.get( PARAM_MIN_REPEAT_NUM));
+            }
             // シートハイパーリンク設定有無
             boolean sheetLink = false;
             if ( paramDef.containsKey( PARAM_SHEET_LINK)) {
@@ -195,6 +205,15 @@ public class RowRepeatParamParser extends ReportsTagParser<Object[]> {
             int shiftNum = paramValues.length;
             // パラメータ数を取得
             int paramLength = paramValues.length;
+            
+            // 最小繰り返し数よりデータが少なければ増やす
+            if(minRepeatNum != null && shiftNum < minRepeatNum) {
+            	Object[] tmpValues = new Object[minRepeatNum];
+            	System.arraycopy(paramValues, 0, tmpValues, 0, paramValues.length);
+            	paramValues = tmpValues;
+            	shiftNum = paramValues.length;
+            	paramLength = paramValues.length;
+            }
 
             // 対象セルの開始行番号を取得
             int defaultFromCellRowIndex = tagCell.getRowIndex();
@@ -257,14 +276,18 @@ public class RowRepeatParamParser extends ReportsTagParser<Object[]> {
                     PoiUtil.insertRangeDown( sheet, rangeAddress);
                 } else {
                     // 行単位でシフトする場合
-                    int shiftStartRow = tagCell.getRowIndex() + 1;
-                    int shiftEndRow = sheet.getLastRowNum();
-                    if ( shiftEndRow < shiftStartRow) {
-                        // タグが終了行に存在していた場合には「最終行＝開始行＋１」に置き換える
-                        // ※開始行＝終了行＋１となってしまうことを防ぐ
-                        shiftEndRow = shiftStartRow + 1;
-                    }
-                    sheet.shiftRows( shiftStartRow, shiftEndRow, shiftNum - unitRowSize);
+                    // #35 POIの不具合のため、行シフト先に結合セルがあると、解除されてしまう。
+                    // そのため、0～最終列までのセル範囲の挿入で対応している。
+                    CellRangeAddress rangeAddress = new CellRangeAddress( tagCell.getRowIndex() + unitRowSize, tagCell.getRowIndex() + shiftNum - 1, 0, PoiUtil.getLastColNum( sheet));
+                    PoiUtil.insertRangeDown( sheet, rangeAddress);
+                    // int shiftStartRow = tagCell.getRowIndex() + 1;
+                    // int shiftEndRow = sheet.getLastRowNum();
+                    // if ( shiftEndRow < shiftStartRow) {
+                    // // タグが終了行に存在していた場合には「最終行＝開始行＋１」に置き換える
+                    // // ※開始行＝終了行＋１となってしまうことを防ぐ
+                    // shiftEndRow = shiftStartRow + 1;
+                    // }
+                    // sheet.shiftRows( shiftStartRow, shiftEndRow, shiftNum - unitRowSize);
                 }
             }
 
@@ -332,7 +355,7 @@ public class RowRepeatParamParser extends ReportsTagParser<Object[]> {
                 // ■ハイパーリンク設定
                 if ( sheetLink) {
                     if ( !skipRow && valueIndex < sheetNames.size()) {
-                        PoiUtil.setHyperlink( cell, Hyperlink.LINK_DOCUMENT, "'" + sheetNames.get( valueIndex) + "'!A1");
+                        PoiUtil.setHyperlink( cell, HyperlinkType.DOCUMENT, "'" + sheetNames.get( valueIndex) + "'!A1");
                         if ( log.isDebugEnabled()) {
                             log.debug( "[シート名=" + sheetName + ",セル=(" + cell.getRowIndex() + "," + cell.getColumnIndex() + ")]  Hyperlink ⇒ " + "'" + sheetNames.get( valueIndex) + "'!A1");
                         }

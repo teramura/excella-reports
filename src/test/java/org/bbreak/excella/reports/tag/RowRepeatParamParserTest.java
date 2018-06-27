@@ -28,17 +28,19 @@
 
 package org.bbreak.excella.reports.tag;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-import org.apache.poi.hssf.usermodel.HSSFSheet;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.bbreak.excella.core.exception.ParseException;
 import org.bbreak.excella.core.util.PoiUtil;
 import org.bbreak.excella.reports.ReportsTestUtil;
@@ -328,7 +330,51 @@ public class RowRepeatParamParserTest extends ReportsWorkbookTest {
             assertTrue( e.getCause() instanceof IllegalArgumentException);
             assertTrue( e.getMessage().contains("There are crossing merged regions in the range."));
         }
+
+        // ------------------------------------------------------------
+        // □[正常系]
+        // ・行シフト先に結合セルがある
+        // ------------------------------------------------------------
+        workbook = getWorkbook();
+        Sheet sheet17 = workbook.getSheetAt( 16);
+        results = null;
+        try {
+            results = parseSheet( parser, sheet17, reportsParserInfo);
+        } catch ( ParseException e) {
+            e.printStackTrace();
+            fail( e.toString());
+        }
+        checkSheet( "Sheet17", sheet17, true);
         
+        // ------------------------------------------------------------
+        // □[正常系]
+        // ・最低繰返回数
+        // ------------------------------------------------------------
+        workbook = getWorkbook();
+        Sheet sheet18 = workbook.getSheetAt( 17);
+        // 解析処理
+        results = null;
+        try {
+            results = parseSheet( parser, sheet18, reportsParserInfo);
+        } catch ( ParseException e) {
+            e.printStackTrace();
+            fail( e.toString());
+        }
+        
+        // 順にデータ数=最低繰返回数、データ数=最低繰返数-1,データ数=最低繰返数-1(結合セルが下にある),データ数=最低繰返数-1(結合セルを繰り返し)
+        expectBeCells = new CellObject[] {new CellObject(1,1),new CellObject(2,2),new CellObject(2,4), new CellObject(4,3)};
+        expectAfCells = new CellObject[] {new CellObject(5,1),new CellObject(5,2),new CellObject(5,4), new CellObject(10,3)};
+        checkResult( expectBeCells, expectAfCells, results);
+
+        // 不要シートを削除
+        if ( version.equals( "2007")) {
+            int index = workbook.getSheetIndex( PoiUtil.TMP_SHEET_NAME);
+            if ( index > 0) {
+                workbook.removeSheetAt( index);
+            }
+        }
+        
+        checkSheet( "Sheet18", sheet18, true);
     }
 
     /**
