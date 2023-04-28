@@ -16,10 +16,10 @@ Excella Reports
 2. 配布条件  
 -------------
 
-  本ソフトウェアはLGPL v3にて公開しています。
-  詳細は「COPYING.LESSER」ファイルまたは
+  本ソフトウェアはApache License, Version 2.0にて公開しています。
+  詳細は「LICENSE.txt」ファイルまたは
   以下のページを参照してください。
-  http://www.gnu.org/licenses/lgpl-3.0-standalone.html
+  https://www.apache.org/licenses/LICENSE-2.0.txt
 
 
 3. 免責  
@@ -44,6 +44,8 @@ mavenの依存ライブラリとして追加する場合、pom.xmlに下記の�
 
 5. 更新履歴  
 -------------
+* 2021/07/11 Version 2.1 リリース
+* 2019/12/24 Version 2.0 リリース
 * 2017/07/15 Version 1.11 リリース
 * 2017/01/28 Version 1.10 リリース
 * 2016/04/05 Version 1.9 リリース

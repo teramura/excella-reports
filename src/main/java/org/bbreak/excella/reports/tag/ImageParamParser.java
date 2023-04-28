@@ -1,45 +1,39 @@
-/*************************************************************************
- *
- * Copyright 2009 by bBreak Systems.
- *
- * ExCella Reports - Excelファイルを利用した帳票ツール
- *
- * $Id: ImageParamParser.java 201 2013-03-15 05:11:47Z kamisono_bb $
- * $Revision: 201 $
- *
- * This file is part of ExCella Reports.
- *
- * ExCella Reports is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License version 3
- * only, as published by the Free Software Foundation.
- *
- * ExCella Reports is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Lesser General Public License version 3 for more details
- * (a copy is included in the COPYING.LESSER file that accompanied this code).
- *
- * You should have received a copy of the GNU Lesser General Public License
- * version 3 along with ExCella Reports .  If not, see
- * <http://www.gnu.org/licenses/lgpl-3.0-standalone.html>
- * for a copy of the LGPLv3 License.
- *
- ************************************************************************/
+/*-
+ * #%L
+ * excella-reports
+ * %%
+ * Copyright (C) 2009 - 2019 bBreak Systems and contributors
+ * %%
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * #L%
+ */
+
 package org.bbreak.excella.reports.tag;
 
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Optional;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.poi.hssf.usermodel.HSSFSheet;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
-import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.ClientAnchor;
 import org.apache.poi.ss.usermodel.Comment;
 import org.apache.poi.ss.usermodel.CreationHelper;
@@ -113,6 +107,30 @@ public class ImageParamParser extends ReportsTagParser<String> {
     public static final String PARAM_SCALE = "scale";
 
     /**
+     * リサイズ基準指定用のパラメータ(セル基準: {@code "cell"}, 元画像基準: {@code "image"})
+     */
+    public static final String PARAM_RESIZE_BASE = "resizeBase";
+
+    private enum ResizeBase {
+        CELL( "cell"), IMAGE( "image");
+
+        private static final ResizeBase DEFAULT = IMAGE;
+
+        private final String code;
+
+        ResizeBase( String code) {
+            this.code = code;
+        }
+
+        static ResizeBase ofCode( String code) {
+            Optional<ResizeBase> base = Arrays.stream( values())
+                .filter( b -> b.code.equalsIgnoreCase( code))
+                .findAny();
+            return base.orElse( DEFAULT);
+        }
+    }
+
+    /**
      * 図オブジェクトコンテナのキャッシュ
      */
     @SuppressWarnings( "rawtypes")
@@ -177,10 +195,18 @@ public class ImageParamParser extends ReportsTagParser<String> {
                 scale = Double.valueOf( paramDef.get( PARAM_SCALE));
             }
 
+            boolean inMergedRegion = ReportsUtil.getMergedAddress( sheet, tagCell.getRowIndex(), tagCell.getColumnIndex()) != null;
+
+            // リサイズ基準
+            ResizeBase resizeBase = inMergedRegion ? ResizeBase.CELL : ResizeBase.DEFAULT;
+            if ( paramDef.containsKey( PARAM_RESIZE_BASE)) {
+                resizeBase = ResizeBase.ofCode(paramDef.get( PARAM_RESIZE_BASE));
+            }
+
             // 結合セルに含まれるか
-            if ( ReportsUtil.getMergedAddress( sheet, tagCell.getRowIndex(), tagCell.getColumnIndex()) != null) {
+            if ( inMergedRegion) {
                 CellStyle cellStyle = tagCell.getCellStyle();
-                tagCell.setCellType( CellType.BLANK);
+                tagCell.setBlank();
                 tagCell.setCellStyle( cellStyle);
             } else {
                 tagCell = new CellClone( tagCell);
@@ -195,7 +221,7 @@ public class ImageParamParser extends ReportsTagParser<String> {
             }
 
             if ( paramValue != null) {
-                replaceImageValue( sheet, tagCell, paramValue, dx1, dy1, scale);
+                replaceImageValue( sheet, tagCell, paramValue, dx1, dy1, scale, resizeBase);
             }
 
         }
@@ -281,9 +307,10 @@ public class ImageParamParser extends ReportsTagParser<String> {
      * @param dx1 画像の幅調整値
      * @param dy1 画像の高さ調整値
      * @param scale 画像の倍率値
+     * @param resizeBase リサイズ基準
      * @throws ParseException
      */
-    public void replaceImageValue( Sheet sheet, Cell cell, String filePath, Integer dx1, Integer dy1, Double scale) throws ParseException {
+    public void replaceImageValue( Sheet sheet, Cell cell, String filePath, Integer dx1, Integer dy1, Double scale, ResizeBase resizeBase) throws ParseException {
 
         Workbook workbook = sheet.getWorkbook();
 
@@ -325,10 +352,23 @@ public class ImageParamParser extends ReportsTagParser<String> {
 
         ClientAnchor anchor = helper.createClientAnchor();
 
-        anchor.setRow1( cell.getRowIndex());
-        anchor.setCol1( cell.getColumnIndex());
-        anchor.setRow2( cell.getRowIndex() + 1);
-        anchor.setCol2( cell.getColumnIndex() + 1);
+        Optional<CellRangeAddress> mergedRegionIncludesTargetCell = sheet.getMergedRegions().stream()
+            .filter( c -> c.isInRange( cell))
+            .findFirst();
+        if ( mergedRegionIncludesTargetCell.isPresent()) {
+            CellRangeAddress region = mergedRegionIncludesTargetCell.get();
+            anchor.setRow1( region.getFirstRow());
+            anchor.setCol1( region.getFirstColumn());
+            anchor.setRow2( region.getLastRow() + 1);
+            anchor.setCol2( region.getLastColumn() + 1);
+        }
+        else {
+            anchor.setRow1( cell.getRowIndex());
+            anchor.setCol1( cell.getColumnIndex());
+            anchor.setRow2( cell.getRowIndex() + 1);
+            anchor.setCol2( cell.getColumnIndex() + 1);
+        }
+
         if ( dx1 != null) {
             anchor.setDx1( dx1);
         }
@@ -337,8 +377,12 @@ public class ImageParamParser extends ReportsTagParser<String> {
         }
 
         Picture picture = drawing.createPicture( anchor, pictureIdx);
-        picture.resize( scale);
-
+        if ( resizeBase == ResizeBase.IMAGE) {
+            picture.resize();
+        }
+        if (scale != 1.0) {
+        	picture.resize( scale);
+        }
     }
 
     /*
