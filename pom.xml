@@ -2,7 +2,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.bbreak.excella</groupId>
   <artifactId>excella-reports</artifactId>
-  <version>2.2-SNAPSHOT</version>
+  <version>2.3-SNAPSHOT</version>
   <name>excella-reports</name>
 
   <properties>
@@ -32,7 +32,7 @@
     <repository>
 	  <id>excella.bbreak.org</id>
       <name>bBreak Systems Excella</name>
-      <url>http://excella-core.github.io/maven2/</url>    
+      <url>https://excella-core.github.io/maven2/</url>    
     </repository>
   </repositories>
   <build>
@@ -58,6 +58,19 @@
 		</plugin>
 		<plugin>
 		  <groupId>org.apache.maven.plugins</groupId>
+		  <artifactId>maven-source-plugin</artifactId>
+		  <version>3.3.0</version>
+		  <executions>
+		    <execution>
+		      <phase>package</phase>
+		      <goals>
+		        <goal>jar</goal>
+		      </goals>
+		    </execution>
+		  </executions>
+		</plugin>
+		<plugin>
+		  <groupId>org.apache.maven.plugins</groupId>
 		  <artifactId>maven-javadoc-plugin</artifactId>
 		  <version>3.1.1</version>
 		  <configuration>
@@ -71,6 +84,7 @@
 		      <phase>package</phase>
 		      <goals>
 		        <goal>javadoc</goal>
+		        <goal>jar</goal>
 		      </goals>
 		    </execution>
 		  </executions>
@@ -114,7 +128,7 @@
 		<plugin>
 			<groupId>org.jacoco</groupId>
 			<artifactId>jacoco-maven-plugin</artifactId>
-			<version>0.8.6</version>
+			<version>0.8.10</version>
 			<executions>
 				<execution>
 					<id>prepare-agent</id>
@@ -146,7 +160,7 @@
   	<dependency>
   		<groupId>org.bbreak.excella</groupId>
   		<artifactId>excella-core</artifactId>
-  		<version>2.0</version>
+  		<version>2.1</version>
   	</dependency>
   	<dependency>
   		<groupId>junit</groupId>
